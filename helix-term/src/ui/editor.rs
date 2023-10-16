@@ -156,7 +156,13 @@ impl EditorView {
                     &config.cursor_shape,
                 ),
             );
-            let focused_view_elements = Self::highlight_focused_view_elements(view, doc, theme);
+            let focused_view_elements = Self::highlight_focused_view_elements(
+                view,
+                doc,
+                theme,
+                editor.mode,
+                editor.cursor().1,
+            );
             if focused_view_elements.is_empty() {
                 Box::new(highlights)
             } else {
@@ -500,12 +506,19 @@ impl EditorView {
         view: &View,
         doc: &Document,
         theme: &Theme,
+        mode: Mode,
+        cursor_kind: CursorKind,
     ) -> Vec<(usize, std::ops::Range<usize>)> {
         // Highlight matching braces
         if let Some(syntax) = doc.syntax() {
             let text = doc.text().slice(..);
             use helix_core::match_brackets;
-            let pos = doc.selection(view.id).primary().cursor(text);
+            let pos_raw = doc.selection(view.id).primary().cursor(text);
+            let pos = if mode == Mode::Insert && cursor_kind == CursorKind::Bar {
+                pos_raw.saturating_sub(1)
+            } else {
+                pos_raw
+            };
 
             if let Some(pos) =
                 match_brackets::find_matching_bracket(syntax, doc.text().slice(..), pos)
